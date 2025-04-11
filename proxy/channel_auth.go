@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/bruce-wayne522/net/proxy/socks"
 	"golang.org/x/net/proxy"
@@ -219,11 +220,18 @@ func int2uintx(num int, bit int) []byte {
 	}
 }
 
-var hostname string
+var (
+	hostname     string
+	hostnameHash string
+)
 
 func init() {
-	hostname = os.Getenv("POD_NAME")
-	if hostname == "" {
-		hostname, _ = os.Hostname()
+	if str := os.Getenv("POD_NAME"); str != "" {
+		hostname = str
+	} else if str = os.Getenv("HOSTNAME"); str != "" {
+		hostname = str
+	} else if str, _ = os.Hostname(); str != "" {
+		hostname = str
 	}
+	hostnameHash = strings.ToLower(Sha256([]byte(hostname)))
 }

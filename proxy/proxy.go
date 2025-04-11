@@ -2,11 +2,9 @@ package proxy
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"math/big"
 	"net"
 	"net/url"
 	"os"
@@ -337,13 +335,12 @@ func _buildSingleProxyDialer(auth *ProxyConfig, pauth *Auth, forward proxy.Diale
 
 const proxyTraceIdKey = "$proxy-trace-id"
 
+var nextTraceNum uint64
+
 func TraceDialer(dialer DialContextFunc) DialContextFunc {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if ctx.Value(proxyTraceIdKey) == nil {
-			traceId := "-"
-			if num, err := rand.Int(rand.Reader, big.NewInt(1024)); err != nil {
-				traceId = num.String()
-			}
+			traceId := hostnameHash + strconv.FormatUint(atomic.AddUint64(&nextTraceNum, 1), 10)
 			ctx = context.WithValue(ctx, proxyTraceIdKey, traceId)
 			ctx = withTraceTag(context.WithValue(ctx, proxyTraceIdKey, traceId), "trace:"+traceId)
 		}
