@@ -80,7 +80,7 @@ func (gdid GDID) Cdr() GDID {
 }
 
 func (gdid GDID) Hash() string {
-	return Sha256([]byte(gdid))
+	return rawSha256([]byte(gdid))
 }
 
 func (gdid GDID) Tokenize() (ret []string) {

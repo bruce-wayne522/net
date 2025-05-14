@@ -57,6 +57,11 @@ func Sha256(bs []byte) string {
 	return Base58Encode(hash[:])
 }
 
+func rawSha256(bs []byte) string {
+	hash := sha256.Sum256(bs)
+	return fmt.Sprintf("%x", hash)
+}
+
 func FirstNonEmptyStr(s ...string) string {
 	for _, p := range s {
 		if !IsBlank(p) {
