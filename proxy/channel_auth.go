@@ -102,12 +102,6 @@ type channelAuth struct {
 	next           func(context.Context, io.ReadWriter, socks.AuthMethod) error
 }
 
-const connCtxKey = "proxy_connection_context_key"
-
-type connCtx struct {
-	ConnectionID uint32
-}
-
 func (self *channelAuth) Authenticate(ctx context.Context, rw io.ReadWriter, auth socks.AuthMethod) error {
 	switch auth {
 	case socks.AuthMethodNotRequired:
@@ -141,11 +135,7 @@ func (self *channelAuth) Authenticate(ctx context.Context, rw io.ReadWriter, aut
 			return err
 		}
 		connId := binary.LittleEndian.Uint32(bs)
-		if k := ctx.Value(connCtxKey); k != nil {
-			if ctx0, ok := k.(*connCtx); ok && ctx0 != nil {
-				ctx0.ConnectionID = connId
-			}
-		}
+		socks.SetConnectionId(ctx, connId)
 		log(ctx, "channel=%v,version=%v,connection=%v auth success", self.channel, version, connId)
 		return nil
 	}

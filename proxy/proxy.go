@@ -311,15 +311,14 @@ func _buildSingleProxyDialer(auth *ProxyConfig, pauth *Auth, forward proxy.Diale
 	}
 	dialer := func(ctx context.Context, network, addr string) (net.Conn, error) {
 		if cd, ok := proxyDialer.(contextDialer); ok {
-			ctx0 := &connCtx{}
-			ctx, cancel := context.WithTimeout(context.WithValue(ctx, connCtxKey, ctx0), timeout)
+			ctx, cancel := context.WithTimeout(socks.InitContext(ctx), timeout)
 			defer cancel()
 			conn, err0 := cd.DialContext(ctx, network, addr)
 			if err0 != nil {
 				return nil, err0
 			}
-			if sconn, ok := conn.(*socks.Conn); ok && ctx0.ConnectionID != 0 {
-				sconn.SetId(ctx0.ConnectionID)
+			if sconn, ok := conn.(*socks.Conn); ok && socks.GetConnectionId(ctx) != 0 {
+				sconn.SetId(socks.GetConnectionId(ctx))
 			}
 			return conn, nil
 		}

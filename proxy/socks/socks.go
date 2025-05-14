@@ -12,6 +12,7 @@ package socks
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -156,6 +157,9 @@ type Dialer struct {
 func (d *Dialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	if err := d.validateTarget(network, address); err != nil {
 		proxy, dst, _ := d.pathAddrs(address)
+		if connId := GetConnectionId(ctx); connId > 0 {
+			err = fmt.Errorf("conn:%d %w", connId, err)
+		}
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	if ctx == nil {
@@ -172,11 +176,17 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (net.
 	}
 	if err != nil {
 		proxy, dst, _ := d.pathAddrs(address)
+		if connId := GetConnectionId(ctx); connId > 0 {
+			err = fmt.Errorf("conn:%d %w", connId, err)
+		}
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	a, err := d.connect(ctx, c, address)
 	if err != nil {
 		c.Close()
+		if connId := GetConnectionId(ctx); connId > 0 {
+			err = fmt.Errorf("conn:%d %w", connId, err)
+		}
 		proxy, dst, _ := d.pathAddrs(address)
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
@@ -192,6 +202,9 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (net.
 func (d *Dialer) DialWithConn(ctx context.Context, c net.Conn, network, address string) (net.Addr, error) {
 	if err := d.validateTarget(network, address); err != nil {
 		proxy, dst, _ := d.pathAddrs(address)
+		if connId := GetConnectionId(ctx); connId > 0 {
+			err = fmt.Errorf("conn:%d %w", connId, err)
+		}
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	if ctx == nil {
@@ -201,6 +214,9 @@ func (d *Dialer) DialWithConn(ctx context.Context, c net.Conn, network, address 
 	a, err := d.connect(ctx, c, address)
 	if err != nil {
 		proxy, dst, _ := d.pathAddrs(address)
+		if connId := GetConnectionId(ctx); connId > 0 {
+			err = fmt.Errorf("conn:%d %w", connId, err)
+		}
 		return nil, &net.OpError{Op: d.cmd.String(), Net: network, Source: proxy, Addr: dst, Err: err}
 	}
 	return a, nil
@@ -319,4 +335,32 @@ func (up *UsernamePassword) Authenticate(ctx context.Context, rw io.ReadWriter, 
 		return nil
 	}
 	return errors.New("unsupported authentication method " + strconv.Itoa(int(auth)))
+}
+
+const connCtxKey = "proxy_connection_context_key"
+
+type connCtx struct {
+	ConnectionID uint32
+}
+
+func InitContext(ctx context.Context) context.Context {
+	ctx0 := &connCtx{}
+	return context.WithValue(ctx, connCtxKey, ctx0)
+}
+
+func SetConnectionId(ctx context.Context, id uint32) {
+	if c := ctx.Value(connCtxKey); c != nil {
+		if cc, ok := c.(*connCtx); ok && cc != nil {
+			cc.ConnectionID = id
+		}
+	}
+}
+
+func GetConnectionId(ctx context.Context) uint32 {
+	if c := ctx.Value(connCtxKey); c != nil {
+		if cc, ok := c.(*connCtx); ok && cc != nil {
+			return cc.ConnectionID
+		}
+	}
+	return 0
 }
