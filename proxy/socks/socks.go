@@ -344,6 +344,11 @@ type connCtx struct {
 }
 
 func InitContext(ctx context.Context) context.Context {
+	if val := ctx.Value(connCtxKey); val != nil {
+		if _, ok := val.(*connCtx); ok {
+			return ctx
+		}
+	}
 	ctx0 := &connCtx{}
 	return context.WithValue(ctx, connCtxKey, ctx0)
 }
