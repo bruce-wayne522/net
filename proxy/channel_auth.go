@@ -136,7 +136,7 @@ func (self *channelAuth) Authenticate(ctx context.Context, rw io.ReadWriter, aut
 		}
 		connId := binary.LittleEndian.Uint32(bs)
 		socks.SetConnectionId(ctx, connId)
-		log(ctx, "channel=%v,version=%v,connection=%v auth success", self.channel, version, connId)
+		log(ctx, "address=%s,channel=%s,version=%d,connection=%d auth success", socks.GetConnectionAddress(ctx), self.channel, version, connId)
 		return nil
 	}
 	if self.next != nil {

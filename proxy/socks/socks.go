@@ -341,15 +341,22 @@ const connCtxKey = "proxy_connection_context_key"
 
 type connCtx struct {
 	ConnectionID uint32
+	Address      string
 }
 
-func InitContext(ctx context.Context) context.Context {
+func InitContext(ctx context.Context, addr ...string) context.Context {
 	if val := ctx.Value(connCtxKey); val != nil {
-		if _, ok := val.(*connCtx); ok {
+		if ctx0, ok := val.(*connCtx); ok {
+			if ctx0 != nil && len(addr) > 0 {
+				ctx0.Address = addr[0]
+			}
 			return ctx
 		}
 	}
 	ctx0 := &connCtx{}
+	if len(addr) > 0 {
+		ctx0.Address = addr[0]
+	}
 	return context.WithValue(ctx, connCtxKey, ctx0)
 }
 
@@ -368,4 +375,13 @@ func GetConnectionId(ctx context.Context) uint32 {
 		}
 	}
 	return 0
+}
+
+func GetConnectionAddress(ctx context.Context) string {
+	if c := ctx.Value(connCtxKey); c != nil {
+		if cc, ok := c.(*connCtx); ok && cc != nil {
+			return cc.Address
+		}
+	}
+	return ""
 }
