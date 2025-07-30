@@ -80,16 +80,16 @@ func addPreflight(auth ProxyConfig, dialer DialContextFunc, mws ...PreflightResu
 		switch result.Action {
 		case PreflightDirect:
 			realAddr := shuffleAddr(replaceEnvVar(result.Endpoint))
-			log(ctx, "connect %s direct by %s(pick %s), msg: %v %s", addr, result.Endpoint, realAddr, result.Message, cachedStr)
+			log(ctx, "connect %s direct by %s(pick %s), msg: %s %s", addr, result.Endpoint, realAddr, result.Message, cachedStr)
 			conn, err = net.Dial(network, realAddr)
 		case PreflightRedirect:
-			log(ctx, "connect %s redirect proxy to %s addr %v, msg: %v %s", addr, result.Proxy, FirstNonEmptyStr(result.Endpoint, addr), result.Message, cachedStr)
+			log(ctx, "connect %s redirect proxy to %s addr %s, msg: %s %s", addr, result.Proxy, FirstNonEmptyStr(result.Endpoint, addr), result.Message, cachedStr)
 			dialer, err = _loadGlobalDialer(result.Proxy, mws...)
 			if err == nil {
 				conn, err = dialer(ctx, network, FirstNonEmptyStr(result.Endpoint, addr))
 			}
 		case PreflightReject:
-			log(ctx, "connect %s is rejected, msg: %v %s", addr, result.Message, cachedStr)
+			log(ctx, "connect %s is rejected, msg: %s %s", addr, result.Message, cachedStr)
 			err = fmt.Errorf("forbid to connect to %s for %s", addr, result.Message)
 		default:
 			/* continue by default */
@@ -115,7 +115,7 @@ func DoPreflight(ctx context.Context, auth ProxyConfig, endpoint string) (result
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("fail to do preflight with %v", JSONStr(auth))
+		return nil, fmt.Errorf("fail to do preflight with %s", JSONStr(auth))
 	}
 	return doPreflight(ctx, auth.Type, auth.Address, auth, endpoint)
 }
@@ -125,7 +125,7 @@ func doPreflight(ctx context.Context, addrType, addr string, auth ProxyConfig, e
 	if err != nil {
 		return nil, err
 	}
-	url := fmt.Sprintf("http://%v/preflight", addr)
+	url := fmt.Sprintf("http://%s/preflight", addr)
 	req := &Preflight{
 		Proxy:    auth,
 		Endpoint: endpoint,
@@ -161,7 +161,7 @@ func doPreflight(ctx context.Context, addrType, addr string, auth ProxyConfig, e
 		Data json.RawMessage `json:"data"`
 	}{}
 	if err = json.Unmarshal(body, &respObj); err != nil {
-		log(ctx, "preflight parse response of %s %v fail %v", url, string(body), err)
+		log(ctx, "preflight parse response of %s %s fail %v", url, string(body), err)
 		return nil, err
 	}
 	if respObj.Code != 0 {
@@ -170,7 +170,7 @@ func doPreflight(ctx context.Context, addrType, addr string, auth ProxyConfig, e
 	}
 	var result PreflightResult
 	if err = json.Unmarshal(respObj.Data, &result); err != nil {
-		log(ctx, "preflight request %s fail %v", url, string(respObj.Data))
+		log(ctx, "preflight request %s fail %s", url, string(respObj.Data))
 		return nil, errors.New(string(respObj.Data))
 	}
 	return &result, nil
@@ -220,7 +220,7 @@ func WithSeeds(seeds []string) PreflightResultFetcherMW {
 				return next(ctx, auth, addr)
 			}
 			seed := takeOne()
-			log(ctx, "use seed %v do preflight instead of %v", seed, addr)
+			log(ctx, "use seed %s do preflight instead of %s", seed, addr)
 			pr, err := next(ctx, auth, seed)
 			if err != nil {
 				return nil, err

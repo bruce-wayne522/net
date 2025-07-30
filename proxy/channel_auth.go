@@ -153,7 +153,7 @@ func (self *channelAuth) useAuthVersion() uint8 {
 
 func (self *channelAuth) basicInfoBytes() ([]byte, error) {
 	if len(self.channel) > 128 {
-		return nil, fmt.Errorf("socks channel %v to long", self.channel)
+		return nil, fmt.Errorf("socks channel %s to long", self.channel)
 	} else if len(self.channel) == 0 {
 		return nil, errors.New("socks channel is blank")
 	}
@@ -161,7 +161,7 @@ func (self *channelAuth) basicInfoBytes() ([]byte, error) {
 	if size := len(self.channelRelay); size > 128 {
 		if version >= ChannelAuthVersion2 && size <= 10240 {
 		} else {
-			return nil, fmt.Errorf("socks channel relay %v to long(%v)", self.channelRelay, size)
+			return nil, fmt.Errorf("socks channel relay %s to long(%d)", self.channelRelay, size)
 		}
 	}
 	b := []byte{version}
@@ -183,7 +183,7 @@ func (self *channelAuth) basicInfoBytes() ([]byte, error) {
 		b = append(b, int2uintx(len(channelToken), 16)...)
 		b = append(b, []byte(channelToken)...)
 	default:
-		return nil, fmt.Errorf("unsupported auth version %v", version)
+		return nil, fmt.Errorf("unsupported auth version %d", version)
 	}
 	return b, nil
 }

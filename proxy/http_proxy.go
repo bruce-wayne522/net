@@ -56,7 +56,7 @@ func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 				return nil, fmt.Errorf("[http-proxy] read CONNECT response fail %w", err)
 			}
 			conn.Close()
-			return nil, fmt.Errorf("[http-proxy] CONNECT response status=%v", resp.Status)
+			return nil, fmt.Errorf("[http-proxy] CONNECT response status=%s", resp.Status)
 		}
 		return conn, nil
 	}), nil

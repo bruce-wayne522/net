@@ -27,7 +27,7 @@ func (loc Location) Params() url.Values {
 func (loc Location) SetParam(k, v string) Location {
 	vals := loc.Params()
 	vals.Set(k, v)
-	return Location(fmt.Sprintf("%v?%v", loc.Path(), vals.Encode()))
+	return Location(fmt.Sprintf("%s?%s", loc.Path(), vals.Encode()))
 }
 
 func (loc Location) IsUnknown() bool {
