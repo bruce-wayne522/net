@@ -66,6 +66,7 @@ func addPreflight(auth ProxyConfig, dialer DialContextFunc, mws ...PreflightResu
 	for _, mw := range mws {
 		getPR = mw(getPR)
 	}
+	var directDialer net.Dialer
 	return func(ctx context.Context, network, addr string) (conn net.Conn, err error) {
 		var result *PreflightResult
 		var cachedStr string
@@ -81,7 +82,7 @@ func addPreflight(auth ProxyConfig, dialer DialContextFunc, mws ...PreflightResu
 		case PreflightDirect:
 			realAddr := shuffleAddr(replaceEnvVar(result.Endpoint))
 			log(ctx, "connect %s direct by %s(pick %s), msg: %s %s", addr, result.Endpoint, realAddr, result.Message, cachedStr)
-			conn, err = net.Dial(network, realAddr)
+			conn, err = directDialer.DialContext(ctx, network, realAddr)
 		case PreflightRedirect:
 			log(ctx, "connect %s redirect proxy to %s addr %s, msg: %s %s", addr, result.Proxy, FirstNonEmptyStr(result.Endpoint, addr), result.Message, cachedStr)
 			dialer, err = _loadGlobalDialer(result.Proxy, mws...)
