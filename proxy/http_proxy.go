@@ -18,10 +18,14 @@ import (
 func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 	const authHeaderKey = "Proxy-Authorization"
 	authHeader := "Basic " + base64.StdEncoding.EncodeToString([]byte(auth.AuthUser+":"+auth.AuthPassword))
-	dialer := net.Dial
+	dialer := new(net.Dialer).DialContext
 	if forward != nil {
-		dialer = func(network, addr string) (net.Conn, error) {
-			return forward.Dial(network, addr)
+		if cd, ok := forward.(proxy.ContextDialer); ok {
+			dialer = cd.DialContext
+		} else {
+			dialer = func(ctx context.Context, network, addr string) (net.Conn, error) {
+				return forward.Dial(network, addr)
+			}
 		}
 	}
 	proxyServer := auth.Address
@@ -33,7 +37,7 @@ func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 			Header: make(http.Header),
 		}
 		connectReq.Header.Add(authHeaderKey, authHeader)
-		conn, err := dialer("tcp", proxyServer)
+		conn, err := dialer(ctx, "tcp", proxyServer)
 		if err != nil {
 			return nil, fmt.Errorf("[http-proxy] connect server fail %w", err)
 		}
