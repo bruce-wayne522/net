@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"net/http"
 	"net/url"
@@ -14,6 +15,8 @@ import (
 
 	"golang.org/x/net/proxy"
 )
+
+const XAllowedHeaders = "x-allowed-headers"
 
 func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 	const authHeaderKey = "Proxy-Authorization"
@@ -28,6 +31,14 @@ func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 			}
 		}
 	}
+	extraHeaders := make(map[string]string)
+	if headers := auth.GetExtra(XAllowedHeaders); headers != "" {
+		for _, k := range strings.Split(headers, ",") {
+			if v := auth.GetExtra(k); k != "" && v != "" {
+				extraHeaders[k] = v
+			}
+		}
+	}
 	proxyServer := auth.Address
 	return DialContextFunc(func(ctx context.Context, network, addr string) (net.Conn, error) {
 		connectReq := &http.Request{
@@ -37,6 +48,9 @@ func httpProxy(auth *ProxyConfig, forward proxy.Dialer) (proxy.Dialer, error) {
 			Header: make(http.Header),
 		}
 		connectReq.Header.Add(authHeaderKey, authHeader)
+		for k, v := range extraHeaders {
+			connectReq.Header.Set(k, v)
+		}
 		conn, err := dialer(ctx, "tcp", proxyServer)
 		if err != nil {
 			return nil, fmt.Errorf("[http-proxy] connect server fail %w", err)
