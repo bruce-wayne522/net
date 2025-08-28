@@ -4,11 +4,9 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"fmt"
 	"net"
 	"net/url"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -19,13 +17,10 @@ import (
 )
 
 const (
-	extra_tag          = "extra"
 	Extra_tag_protocol = "protocol"
 )
 
 var env_default_proxy string
-
-var proxyFixedFields = fixed_fields_of_proxy()
 
 type ProxyConfig struct {
 	Scheme string `form:"-"`
@@ -51,66 +46,62 @@ type ProxyConfig struct {
 	Extra map[string]string `form:"extra"`
 }
 
-func fixed_fields_of_proxy() map[string]int {
-	f := make(map[string]int)
-	typ := reflect.TypeOf(ProxyConfig{})
-	for i := 0; i < typ.NumField(); i++ {
-		if tag := typ.Field(i).Tag.Get(`form`); tag == "" || tag == "-" {
-			continue
-		}
-		f[typ.Field(i).Tag.Get(`form`)] = i
-	}
-	return f
-}
-
 func (self ProxyConfig) Encode() string {
-	typ := reflect.TypeOf(self)
-	val := reflect.ValueOf(self)
-
 	query := url.Values{}
-	for i := 0; i < typ.NumField(); i++ {
-		if tag := typ.Field(i).Tag.Get(`form`); tag == "" || tag == "-" {
-			continue
-		}
-		switch val.Field(i).Kind() {
-		case reflect.Bool:
-			if sval := val.Field(i).Bool(); sval {
-				query.Add(typ.Field(i).Tag.Get(`form`), `true`)
-			}
-		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-			if sval := val.Field(i).Int(); sval != 0 {
-				query.Add(typ.Field(i).Tag.Get(`form`), strconv.FormatInt(sval, 10))
-			}
-		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-			if sval := val.Field(i).Uint(); sval != 0 {
-				query.Add(typ.Field(i).Tag.Get(`form`), strconv.FormatUint(sval, 10))
-			}
-		case reflect.String:
-			if sval := val.Field(i).String(); sval != "" {
-				query.Add(typ.Field(i).Tag.Get(`form`), sval)
-			}
-		case reflect.Map:
-			if typ.Field(i).Tag.Get(`form`) == extra_tag {
-				if extra, ok := val.Field(i).Interface().(map[string]string); ok && extra != nil {
-					for k, v := range extra {
-						if _, isff := proxyFixedFields[k]; !isff {
-							query.Set(k, v)
-						}
-					}
-				}
-			}
-		default:
-			sval := fmt.Sprint(val.Field(i).Interface())
-			if sval != "" {
-				query.Add(typ.Field(i).Tag.Get(`form`), sval)
-			}
+	if self.AuthUser != "" {
+		query.Set("auth_user", self.AuthUser)
+	}
+	if self.AuthPassword != "" {
+		query.Set("auth_password", self.AuthPassword)
+	}
+	if self.ChannelAuth {
+		query.Set("channel_auth", "true")
+	}
+	if self.ChannelRelay != "" {
+		query.Set("relay", self.ChannelRelay)
+	}
+	if self.RelayForRemote {
+		query.Set("remote_relay", "true")
+	}
+	if self.Channel != "" {
+		query.Set("channel", self.Channel)
+	}
+	if self.Type != "" {
+		query.Set("type", self.Type)
+	}
+	if self.EnableTLS {
+		query.Set("tls", "true")
+	}
+	if self.TLSVerifyCertificate {
+		query.Set("tls_verify", "true")
+	}
+	if self.ProxyConnTimeoutSec != 0 {
+		query.Set("timeout", strconv.FormatInt(self.ProxyConnTimeoutSec, 10))
+	}
+	if self.Preflight {
+		query.Set("preflight", "true")
+	}
+	if self.Location != "" {
+		query.Set("location", string(self.Location))
+	}
+	for k, v := range self.Extra {
+		if k != "" && v != "" {
+			query.Set(k, v)
 		}
 	}
+
 	scheme := `tcp`
 	if self.Scheme != "" {
 		scheme = self.Scheme
 	}
-	return fmt.Sprintf(`%s://%s?%s`, scheme, self.Address, query.Encode())
+	/* scheme://dddress?querys */
+	var builder strings.Builder
+	builder.WriteString(scheme)
+	builder.WriteString("://")
+	builder.WriteString(self.Address)
+	builder.WriteString("?")
+	builder.WriteString(query.Encode())
+	return builder.String()
 }
 
 func (self *ProxyConfig) GetChannel() string {
@@ -182,30 +173,40 @@ func Decode(proxyURL string) (ProxyConfig, error) {
 		address = uri.Host
 	}
 	config := ProxyConfig{Extra: make(map[string]string)}
-	typ := reflect.TypeOf(config)
-	val := reflect.ValueOf(&config).Elem()
 
 	query := uri.Query()
 	for key := range query {
 		if v := query.Get(key); v != "" {
-			if idx, isff := proxyFixedFields[key]; isff {
-				switch typ.Field(idx).Type.Kind() {
-				case reflect.String:
-					val.Field(idx).SetString(v)
-				case reflect.Bool:
-					vv, err := strconv.ParseBool(v)
-					if err != nil {
-						return ProxyConfig{}, err
-					}
-					val.Field(idx).SetBool(vv)
-				case reflect.Int, reflect.Int32, reflect.Int64:
-					vv, err := strconv.ParseInt(v, 10, 64)
-					if err != nil {
-						return ProxyConfig{}, err
-					}
-					val.Field(idx).SetInt(vv)
+			switch key {
+			case "auth_user":
+				config.AuthUser = v
+			case "auth_password":
+				config.AuthPassword = v
+			case "channel_auth":
+				config.ChannelAuth = v == "true"
+			case "relay":
+				config.ChannelRelay = v
+			case "remote_relay":
+				config.RelayForRemote = v == "true"
+			case "channel":
+				config.Channel = v
+			case "type":
+				config.Type = v
+			case "tls":
+				config.EnableTLS = v == "true"
+			case "tls_verify":
+				config.TLSVerifyCertificate = v == "true"
+			case "timeout":
+				timeout, err := strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					return config, err
 				}
-			} else {
+				config.ProxyConnTimeoutSec = timeout
+			case "preflight":
+				config.Preflight = v == "true"
+			case "location":
+				config.Location = Location(v)
+			default:
 				config.Extra[key] = v
 			}
 		}
