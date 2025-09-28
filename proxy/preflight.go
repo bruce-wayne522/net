@@ -85,9 +85,9 @@ func addPreflight(auth ProxyConfig, dialer DialContextFunc, mws ...PreflightResu
 			conn, err = directDialer.DialContext(ctx, network, realAddr)
 		case PreflightRedirect:
 			log(ctx, "connect %s redirect proxy to %s addr %s, msg: %s %s", addr, result.Proxy, FirstNonEmptyStr(result.Endpoint, addr), result.Message, cachedStr)
-			dialer, err = _loadGlobalDialer(result.Proxy, mws...)
+			dialer0, err := _loadGlobalDialer(result.Proxy, mws...)
 			if err == nil {
-				conn, err = dialer(ctx, network, FirstNonEmptyStr(result.Endpoint, addr))
+				conn, err = dialer0(ctx, network, FirstNonEmptyStr(result.Endpoint, addr))
 			}
 		case PreflightReject:
 			log(ctx, "connect %s is rejected, msg: %s %s", addr, result.Message, cachedStr)
