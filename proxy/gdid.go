@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 type GDID string
@@ -19,7 +20,7 @@ type ProxyBuilder struct {
 
 var (
 	globalGDIDProxy sync.Map
-	globalGDIDGw    string
+	globalGDIDGw    atomic.Value
 )
 
 func init() {
@@ -43,12 +44,15 @@ func LoadEnvGateway() {
 }
 
 func GetGlobalGDIDGateway() string {
-	return globalGDIDGw
+	if str, ok := globalGDIDGw.Load().(string); ok {
+		return str
+	}
+	return ""
 }
 
 func SetGlobalGDIDGateway(url string) {
 	if url != "" {
-		globalGDIDGw = url
+		globalGDIDGw.Store(url)
 	}
 }
 
@@ -128,7 +132,7 @@ func (dsp *ProxyBuilder) GetProxy() (*ProxyConfig, error) {
 	}
 	gw := dsp.Gateway
 	if gw == "" {
-		gw = globalGDIDGw
+		gw = GetGlobalGDIDGateway()
 	}
 	if gw == "" {
 		return nil, errors.New("no gdid gateway found")
