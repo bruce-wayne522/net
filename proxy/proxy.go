@@ -232,6 +232,15 @@ func (f DialContextFunc) Dial(network, addr string) (net.Conn, error) {
 	return f.DialContext(context.TODO(), network, addr)
 }
 
+func (f DialContextFunc) DialTimeout(network, address string, timeout time.Duration) (net.Conn, error) {
+	if timeout == 0 {
+		return f.Dial(network, address)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return f.DialContext(ctx, network, address)
+}
+
 func BuildProxyDialerByURL(url string, mws ...PreflightResultFetcherMW) (DialContextFunc, error) {
 	auth, err := Decode(url)
 	if err != nil {
